@@ -63,6 +63,11 @@ table{width:100%;border-collapse:collapse;font-size:13px}th,td{padding:9px 8px;b
   </section>
 
   <section id="centros" class="panel hidden">
+    <div class="three" style="margin-bottom:14px">
+      <div class="card kpi"><label>Venta media / unidad · Barra</label><div class="v" id="kAvgBar"></div><div class="sub">Solo ventas analizadas</div></div>
+      <div class="card kpi"><label>Venta media / unidad · Puerta</label><div class="v" id="kAvgDoor"></div><div class="sub">Solo ventas analizadas</div></div>
+      <div class="card kpi"><label>Venta media / unidad · Sala</label><div class="v" id="kAvgRoom"></div><div class="sub">Solo ventas analizadas</div></div>
+    </div>
     <div class="two">
       <div class="card"><h2>Ventas por centro</h2><canvas id="centerChart"></canvas></div>
       <div class="card"><h2>Detalle por centro</h2><table id="centerTable"></table></div>
@@ -101,8 +106,8 @@ function subset(){
   return DB.rows.filter(r=>r.d===dateSel.value);
 }
 function aggregate(list){
-  const x={sales:0,analSales:0,units:0,excluded:0,excludedSales:0,bar:0,door:0,room:0,cats:{}};
-  list.forEach(r=>{x.sales+=r.e;x.bar+=r.be;x.door+=r.pe;x.room+=r.se;if(r.a){x.analSales+=r.e;x.units+=r.u;x.cats[r.c]=(x.cats[r.c]||0)+r.e}else{x.excluded+=r.u;x.excludedSales+=r.e}});
+  const x={sales:0,analSales:0,units:0,excluded:0,excludedSales:0,bar:0,door:0,room:0,barAnalSales:0,doorAnalSales:0,roomAnalSales:0,barAnalUnits:0,doorAnalUnits:0,roomAnalUnits:0,cats:{}};
+  list.forEach(r=>{x.sales+=r.e;x.bar+=r.be;x.door+=r.pe;x.room+=r.se;if(r.a){x.analSales+=r.e;x.units+=r.u;x.barAnalSales+=r.be;x.doorAnalSales+=r.pe;x.roomAnalSales+=r.se;x.barAnalUnits+=r.bu;x.doorAnalUnits+=r.pu;x.roomAnalUnits+=r.su;x.cats[r.c]=(x.cats[r.c]||0)+r.e}else{x.excluded+=r.u;x.excludedSales+=r.e}});
   return x;
 }
 function rank(list,cat,n=15){
@@ -127,7 +132,11 @@ function render(){
   table(document.getElementById('drinkTable'),rank(list,'Bebidas',15));
   table(document.getElementById('dessertTable'),rank(list,'Postres',10));
   const centerVals=[a.bar,a.door,a.room];
-  document.getElementById('centerTable').innerHTML='<thead><tr><th>Centro</th><th>Ventas</th><th>%</th></tr></thead><tbody>'+['Barra','Puerta','Sala'].map((x,i)=>'<tr><td>'+x+'</td><td>'+euro.format(centerVals[i])+'</td><td>'+(a.sales?((centerVals[i]/a.sales)*100).toFixed(1):'0')+'%</td></tr>').join('')+'</tbody>';
+  const avgBar=a.barAnalUnits?a.barAnalSales/a.barAnalUnits:0,avgDoor=a.doorAnalUnits?a.doorAnalSales/a.doorAnalUnits:0,avgRoom=a.roomAnalUnits?a.roomAnalSales/a.roomAnalUnits:0;
+  document.getElementById('kAvgBar').textContent=euro.format(avgBar);
+  document.getElementById('kAvgDoor').textContent=euro.format(avgDoor);
+  document.getElementById('kAvgRoom').textContent=euro.format(avgRoom);
+  document.getElementById('centerTable').innerHTML='<thead><tr><th>Centro</th><th>Ventas</th><th>%</th><th>Venta media/u.</th></tr></thead><tbody>'+[['Barra',a.bar,avgBar],['Puerta',a.door,avgDoor],['Sala',a.room,avgRoom]].map(x=>'<tr><td>'+x[0]+'</td><td>'+euro.format(x[1])+'</td><td>'+(a.sales?((x[1]/a.sales)*100).toFixed(1):'0')+'%</td><td>'+euro.format(x[2])+'</td></tr>').join('')+'</tbody>';
   document.getElementById('integrityTable').innerHTML='<thead><tr><th>Fecha</th><th>Venta fuente</th><th>Dif. €</th><th>Uds. excl.</th><th>€ excl.</th><th>Estado</th></tr></thead><tbody>'+ctrls.map(c=>'<tr><td>'+new Date(c.d+'T00:00:00').toLocaleDateString('es-ES')+'</td><td>'+euro.format(c.sourceSales)+'</td><td>'+euro.format(c.diffSales)+'</td><td>'+integer.format(c.excludedUnits)+'</td><td>'+euro.format(c.excludedSales)+'</td><td><span class="badge '+(c.status==='OK'?'ok':'review')+'">'+c.status+'</span></td></tr>').join('')+'</tbody>';
   drawCharts(a);
 }
