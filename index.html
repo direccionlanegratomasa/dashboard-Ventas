@@ -27,11 +27,12 @@ table{width:100%;border-collapse:collapse;font-size:13px}th,td{padding:9px 8px;b
 </style>
 </head>
 <body>
-<header><h1>Dashboard Gerencial · La Negra Tomasa</h1><p>Ventas por producto y centro · Enero 2026</p></header>
+<header><h1>Dashboard Gerencial · La Negra Tomasa</h1><p>Ventas por producto y centro · Enero–Febrero 2026</p></header>
 <div class="wrap">
   <div class="toolbar">
+    <div><label>Mes</label><select id="monthSel"></select></div>
     <div><label>Fecha</label><select id="dateSel"></select></div>
-    <div><label>Vista</label><select id="scopeSel"><option value="day">Día seleccionado</option><option value="month">Mes completo</option></select></div>
+    <div><label>Vista</label><select id="scopeSel"><option value="day">Día seleccionado</option><option value="month">Mes completo</option><option value="all">Acumulado</option></select></div>
     <div class="tabs">
       <button class="tab active" data-tab="resumen">Resumen</button>
       <button class="tab" data-tab="rankings">Rankings</button>
@@ -79,14 +80,25 @@ const DB={"rows":[{"d":"1899-12-30","p":"MAHOU 5*","c":"Bebidas","s":"Cerveza","
 const euro=new Intl.NumberFormat('es-ES',{style:'currency',currency:'EUR'});
 const integer=new Intl.NumberFormat('es-ES',{maximumFractionDigits:0});
 const dates=[...new Set(DB.rows.map(r=>r.d))].sort();
+const months=[...new Set(dates.map(d=>d.slice(0,7)))].sort();
+const monthSel=document.getElementById('monthSel');
 const dateSel=document.getElementById('dateSel');
-dates.forEach(d=>{const o=document.createElement('option');o.value=d;o.textContent=new Date(d+'T00:00:00').toLocaleDateString('es-ES');dateSel.appendChild(o)});
-dateSel.value=dates[dates.length-1];
+months.forEach(m=>{const o=document.createElement('option');o.value=m;o.textContent=new Date(m+'-01T00:00:00').toLocaleDateString('es-ES',{month:'long',year:'numeric'});monthSel.appendChild(o)});
+monthSel.value=months[months.length-1];
+function refreshDates(){
+  const ds=dates.filter(d=>d.startsWith(monthSel.value));
+  dateSel.innerHTML='';
+  ds.forEach(d=>{const o=document.createElement('option');o.value=d;o.textContent=new Date(d+'T00:00:00').toLocaleDateString('es-ES');dateSel.appendChild(o)});
+  dateSel.value=ds[ds.length-1];
+}
+refreshDates();
 let salesChart,mixChart,centerChart;
 
 function subset(){
   const scope=document.getElementById('scopeSel').value;
-  return scope==='month'?DB.rows:DB.rows.filter(r=>r.d===dateSel.value);
+  if(scope==='all') return DB.rows;
+  if(scope==='month') return DB.rows.filter(r=>r.d.startsWith(monthSel.value));
+  return DB.rows.filter(r=>r.d===dateSel.value);
 }
 function aggregate(list){
   const x={sales:0,analSales:0,units:0,excluded:0,excludedSales:0,bar:0,door:0,room:0,cats:{}};
@@ -107,7 +119,7 @@ function render(){
   document.getElementById('kUnits').textContent=integer.format(a.units);
   document.getElementById('kSalesSub').textContent=a.excludedSales?('Venta excluida: '+euro.format(a.excludedSales)):'Sin venta excluida';
   document.getElementById('kUnitsSub').textContent='Excluidas: '+integer.format(a.excluded)+' uds.';
-  const ctrls=scope==='month'?DB.controls:DB.controls.filter(c=>c.d===dateSel.value);
+  const ctrls=scope==='all'?DB.controls:(scope==='month'?DB.controls.filter(c=>c.d.startsWith(monthSel.value)):DB.controls.filter(c=>c.d===dateSel.value));
   const ok=ctrls.length>0&&ctrls.every(c=>c.status==='OK');
   document.getElementById('kIntegrity').innerHTML='<span class="badge '+(ok?'ok':'review')+'">'+(ok?'OK':'REVISAR')+'</span>';
   document.getElementById('kIntegritySub').textContent=ctrls.length+' archivo(s) controlado(s)';
@@ -120,7 +132,9 @@ function render(){
   drawCharts(a);
 }
 function drawCharts(a){
-  const daily=dates.map(d=>{const x=aggregate(DB.rows.filter(r=>r.d===d));return {d,x}});
+  const scope=document.getElementById('scopeSel').value;
+  const chartDates=scope==='all'?dates:dates.filter(d=>d.startsWith(monthSel.value));
+  const daily=chartDates.map(d=>{const x=aggregate(DB.rows.filter(r=>r.d===d));return {d,x}});
   if(salesChart)salesChart.destroy();
   salesChart=new Chart(document.getElementById('salesChart'),{type:'line',data:{labels:daily.map(z=>z.d.slice(8,10)+'/01'),datasets:[{label:'Venta contable',data:daily.map(z=>z.x.sales),tension:.25},{label:'Venta analizada',data:daily.map(z=>z.x.analSales),tension:.25}]},options:{responsive:true,plugins:{legend:{position:'bottom'}},scales:{y:{ticks:{callback:v=>v.toLocaleString('es-ES')+' €'}}}}});
   if(mixChart)mixChart.destroy();
@@ -130,6 +144,7 @@ function drawCharts(a){
   centerChart=new Chart(document.getElementById('centerChart'),{type:'bar',data:{labels:['Barra','Puerta','Sala'],datasets:[{label:'Ventas €',data:[a.bar,a.door,a.room]}]},options:{plugins:{legend:{display:false}},scales:{y:{ticks:{callback:v=>v.toLocaleString('es-ES')+' €'}}}}});
 }
 document.getElementById('scopeSel').addEventListener('change',render);
+monthSel.addEventListener('change',()=>{refreshDates();document.getElementById('scopeSel').value='month';render()});
 dateSel.addEventListener('change',()=>{document.getElementById('scopeSel').value='day';render()});
 document.querySelectorAll('.tab').forEach(b=>b.addEventListener('click',()=>{document.querySelectorAll('.tab').forEach(x=>x.classList.remove('active'));b.classList.add('active');document.querySelectorAll('.panel').forEach(p=>p.classList.add('hidden'));document.getElementById(b.dataset.tab).classList.remove('hidden');render()}));
 render();
