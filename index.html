@@ -52,6 +52,7 @@ table{width:100%;border-collapse:collapse;font-size:13px}th,td{padding:9px 8px;b
       <div class="card"><h2>Evolución diaria de ventas</h2><canvas id="salesChart"></canvas></div>
       <div class="card"><h2>Mix de ventas por categoría</h2><canvas id="mixChart"></canvas></div>
     </div>
+    <div class="section card"><h2>Comparativa mensual · ventas</h2><canvas id="monthChart"></canvas></div>
   </section>
 
   <section id="rankings" class="panel hidden">
@@ -97,7 +98,7 @@ function refreshDates(){
   dateSel.value=ds[ds.length-1];
 }
 refreshDates();
-let salesChart,mixChart,centerChart;
+let salesChart,mixChart,centerChart,monthChart;
 
 function subset(){
   const scope=document.getElementById('scopeSel').value;
@@ -151,6 +152,27 @@ function drawCharts(a){
   mixChart=new Chart(document.getElementById('mixChart'),{type:'doughnut',data:{labels:cats.map(x=>x[0]),datasets:[{data:cats.map(x=>x[1])}]},options:{plugins:{legend:{position:'bottom'}}}});
   if(centerChart)centerChart.destroy();
   centerChart=new Chart(document.getElementById('centerChart'),{type:'bar',data:{labels:['Barra','Puerta','Sala'],datasets:[{label:'Ventas €',data:[a.bar,a.door,a.room]}]},options:{plugins:{legend:{display:false}},scales:{y:{ticks:{callback:v=>v.toLocaleString('es-ES')+' €'}}}}});
+  const monthData=months.map(m=>{
+    const rows=DB.rows.filter(r=>r.d.startsWith(m));
+    const z=aggregate(rows);
+    return {m,sales:z.sales,anal:z.analSales};
+  });
+  if(monthChart)monthChart.destroy();
+  monthChart=new Chart(document.getElementById('monthChart'),{
+    type:'bar',
+    data:{
+      labels:monthData.map(z=>new Date(z.m+'-01T00:00:00').toLocaleDateString('es-ES',{month:'long'})),
+      datasets:[
+        {label:'Venta contable',data:monthData.map(z=>z.sales)},
+        {label:'Venta analizada',data:monthData.map(z=>z.anal)}
+      ]
+    },
+    options:{
+      responsive:true,
+      plugins:{legend:{position:'bottom'}},
+      scales:{y:{beginAtZero:true,ticks:{callback:v=>v.toLocaleString('es-ES')+' €'}}}
+    }
+  });
 }
 document.getElementById('scopeSel').addEventListener('change',render);
 monthSel.addEventListener('change',()=>{refreshDates();document.getElementById('scopeSel').value='month';render()});
