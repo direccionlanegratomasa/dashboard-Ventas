@@ -52,7 +52,7 @@ table{width:100%;border-collapse:collapse;font-size:13px}th,td{padding:9px 8px;b
       <div class="card"><h2>Evolución diaria de ventas</h2><canvas id="salesChart"></canvas></div>
       <div class="card"><h2>Mix de ventas por categoría</h2><canvas id="mixChart"></canvas></div>
     </div>
-    <div class="section card"><h2>Comparativa mensual · ventas</h2><canvas id="monthChart"></canvas></div>
+    <div class="section card"><h2>Comparativa mensual · mes vs mes</h2><canvas id="monthChart"></canvas></div>
   </section>
 
   <section id="rankings" class="panel hidden">
@@ -155,7 +155,7 @@ function drawCharts(a){
   const monthData=months.map(m=>{
     const rows=DB.rows.filter(r=>r.d.startsWith(m));
     const z=aggregate(rows);
-    return {m,sales:z.sales,anal:z.analSales};
+    return {m,ventas:z.analSales};
   });
   if(monthChart)monthChart.destroy();
   monthChart=new Chart(document.getElementById('monthChart'),{
@@ -163,13 +163,12 @@ function drawCharts(a){
     data:{
       labels:monthData.map(z=>new Date(z.m+'-01T00:00:00').toLocaleDateString('es-ES',{month:'long'})),
       datasets:[
-        {label:'Venta contable',data:monthData.map(z=>z.sales)},
-        {label:'Venta analizada',data:monthData.map(z=>z.anal)}
+        {label:'Ventas analizadas €',data:monthData.map(z=>z.ventas)}
       ]
     },
     options:{
       responsive:true,
-      plugins:{legend:{position:'bottom'}},
+      plugins:{legend:{display:false}},
       scales:{y:{beginAtZero:true,ticks:{callback:v=>v.toLocaleString('es-ES')+' €'}}}
     }
   });
